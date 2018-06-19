@@ -22,6 +22,7 @@ def modulePrefix = 'app'
 def globalModule = project(":${modulePrefix}-global")
 def coreModule = project(":${modulePrefix}-core")
 def webModule = project(":${modulePrefix}-web")
+def frontModule = project(":${modulePrefix}-front")
 
 def servletApi = 'javax.servlet:javax.servlet-api:3.1.0'
 
@@ -172,7 +173,38 @@ configure(webModule) {
 
 
 
+configure (frontModule) {
+    apply(plugin: 'com.moowork.node')
+    apply(plugin: 'idea')
+    apply(plugin: 'war')
 
+    def mainBuildDir = 'dist/cuba-ng-material' //sub directory matches Angular app name
+
+    node {
+        version = '8.11.3'
+        download = true
+    }
+
+    task buildAngularApp(type: NpmTask, dependsOn: npmInstall) {
+        args = ['run', 'build']
+        inputs.files fileTree('./') {
+            exclude 'dist'
+            exclude 'build'
+        }
+        outputs.dir 'dist'
+    }
+
+    assemble.dependsOn buildAngularApp
+
+    task deploy(type: Copy, dependsOn: [assemble]) {
+        from file(mainBuildDir)
+        into "$cuba.tomcat.dir/webapps/front"
+    }
+
+    war {
+        from file(mainBuildDir)
+    }
+}
 
 task undeploy(type: Delete, dependsOn: ":${modulePrefix}-web:cleanConf") {
     delete("$cuba.tomcat.dir/shared")
